@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce"
+	xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:batch="http://www.mulesoft.org/schema/mule/batch"
+	xmlns:file="http://www.mulesoft.org/schema/mule/file"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd 
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd 
+http://www.mulesoft.org/schema/mule/batch http://www.mulesoft.org/schema/mule/batch/current/mule-batch.xsd 
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd 
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd">
+	
+		<file:config name="File_Config" doc:name="File Config" doc:id="248f4732-904e-4925-b62b-121a618c0298" >
+		<file:connection workingDir="C:\AnypointStudio\studio-workspace\assignment6\src\test\resources" />
+	</file:config>
+	<salesforce:sfdc-config name="Salesforce_Config" doc:name="Salesforce Config" doc:id="02f9a393-0545-4278-8c4c-8a793cf35673" >
+		<salesforce:cached-basic-connection username="prateek.dhal@publicissapient.com" password="Nokia@1012" securityToken="639SBfTEUAH0UaQaZP91AExyL" />
+	</salesforce:sfdc-config>
+	<flow name="batchProcessCSVaccounts" doc:id="1c7ee374-c1e8-4c3d-ae7d-755ec5bbe155" >
+		<file:listener doc:name="On New or Updated File" doc:id="ce8b2d6c-49c6-489a-a3f5-847a78ae327c" config-ref="File_Config" directory="input" moveToDirectory="output">
+			<scheduling-strategy >
+				<fixed-frequency />
+			</scheduling-strategy>
+			<file:matcher filenamePattern="*.csv"/>
+		</file:listener>
+		<ee:transform doc:name="Copy_of_csv to java" doc:id="673d0deb-758b-44cc-acba-b2f7fe0e3515" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<batch:job jobName="accountsBatch_Job" doc:id="5641be72-0622-4961-a512-323c9f562177" >
+			<batch:process-records >
+				<batch:step name="Batch_Step" doc:id="08a9f0bd-6b79-4280-804b-b887f2e7ecdd" >
+					<batch:aggregator doc:name="Batch Aggregator" doc:id="8726d265-43f8-4eef-a489-6eb5bff126c1" size="2">
+						<salesforce:create type="Contact" doc:name="Create" doc:id="1a1e34f3-9e3a-44f6-a7cc-113452b6a60a" config-ref="Salesforce_Config"/>
+						<ee:transform doc:name="Transform Message" doc:id="eb0909c2-518c-4ce1-87c0-abf1573723ae" >
+							<ee:message >
+								<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+					</batch:aggregator>
+					<ee:transform doc:name="Transform Message" doc:id="e2c0b3ba-be3f-408e-98fd-e4bfe80bded4">
+						<ee:message>
+							<ee:set-payload><![CDATA[%dw 2.0
+output application/java
+---
+{	
+	FirstName: payload."firstname",
+	LastName: payload."lastname",
+	Title: payload."jobtitle",
+	MailingCountry: payload."country",
+	Phone: payload."phone"
+}]]></ee:set-payload>
+						</ee:message>
+					</ee:transform>
+				
+</batch:step>
+			</batch:process-records>
+			<batch:on-complete >
+				<logger level="INFO" doc:name="Logger" doc:id="8f452f5c-dfb0-43f6-9adb-20bed7a16637" message="Data added successfully"/>
+			</batch:on-complete>
+		</batch:job>
+	</flow>
+</mule>
